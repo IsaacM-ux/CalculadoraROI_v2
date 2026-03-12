@@ -1,6 +1,6 @@
 # Guía de Despliegue — Drone ROI Calculator
 
-Dos opciones: **Vercel** (más simple) y **VPS en DigitalOcean** (más control).
+Tres opciones: **Vercel**, **VPS en DigitalOcean** y **GitHub Actions** para automatizar ambos despliegues.
 
 ---
 
@@ -39,6 +39,13 @@ Cada `git push` a `main`/`master` genera un deploy automático. Los pull request
 ### Variables de entorno
 Si en el futuro necesitas env vars:
 - Settings → Environment Variables → Agregar
+
+### Dominio propio en Vercel
+Si ya tienes dominio:
+- En Vercel ve a `Project Settings → Domains`
+- Agrega tu dominio y subdominio (`tudominio.com`, `www.tudominio.com`)
+- Apunta los DNS que te pida Vercel
+- Una vez configurado, cada deploy nuevo desde GitHub Actions o desde Vercel actualizará ese dominio automáticamente
 
 ---
 
@@ -159,6 +166,59 @@ docker compose ps
 
 ---
 
+## Opción 3: GitHub Actions
+
+Se añadieron dos workflows en `.github/workflows/`:
+
+| Workflow | Archivo | Qué hace |
+|---|---|---|
+| Vercel | `.github/workflows/deploy-vercel.yml` | Hace build y despliega a Vercel en cada push a `master` |
+| VPS | `.github/workflows/deploy-vps.yml` | Entra por SSH a tu VPS, hace `git fetch/reset` y `docker compose up -d --build` cuando lo lanzas manualmente |
+
+### Secrets necesarios para Vercel
+
+Configúralos en GitHub: `Settings → Secrets and variables → Actions`
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+Cómo obtenerlos:
+
+```bash
+npm i -g vercel
+vercel login
+vercel link
+cat .vercel/project.json
+```
+
+De ahí sacas:
+- `projectId` → `VERCEL_PROJECT_ID`
+- `orgId` → `VERCEL_ORG_ID`
+
+El token se crea en:
+- `Vercel Dashboard → Settings → Tokens`
+
+### Secrets necesarios para la VPS
+
+- `VPS_HOST` → IP o dominio del servidor
+- `VPS_USER` → normalmente `deploy`
+- `VPS_SSH_KEY` → clave privada SSH completa
+- `VPS_APP_PATH` → ruta del proyecto en el servidor, por ejemplo `/home/deploy/app`
+
+### Flujo recomendado
+
+1. Si quieres simplicidad: usa **Vercel** y deja activo `deploy-vercel.yml`
+2. Si quieres control total: usa la **VPS** y ejecuta `deploy-vps.yml` manualmente desde GitHub Actions
+3. No apuntes el mismo dominio a Vercel y a la VPS al mismo tiempo
+
+### Cómo desactivar uno de los dos
+
+- O borra el workflow que no quieras usar
+- O deja `deploy-vps.yml` manual y usa solo Vercel para producción
+
+---
+
 ## Comparación rápida
 
 | Aspecto | Vercel | VPS DigitalOcean |
@@ -166,7 +226,7 @@ docker compose ps
 | **Costo** | Gratis (hobby) | $6/mes mínimo |
 | **Setup** | 2 minutos | 15-30 minutos |
 | **SSL** | Automático | Manual (Let's Encrypt) |
-| **CI/CD** | Automático (git push) | Manual (git pull + rebuild) |
+| **CI/CD** | Automático (Vercel o GitHub Actions) | Automático con GitHub Actions o manual |
 | **Escalabilidad** | Automática | Manual |
 | **Control** | Limitado | Total |
 | **Dominio custom** | Fácil | Requiere DNS |
@@ -184,3 +244,5 @@ docker compose ps
 | `nginx/default.conf` | Reverse proxy, gzip, headers de seguridad, cache estático |
 | `scripts/vps-setup.sh` | Setup inicial del servidor (Docker, firewall, usuario) |
 | `next.config.ts` | `output: "standalone"` para Docker optimizado |
+| `.github/workflows/deploy-vercel.yml` | Despliegue automático a Vercel |
+| `.github/workflows/deploy-vps.yml` | Despliegue automático a la VPS por SSH |

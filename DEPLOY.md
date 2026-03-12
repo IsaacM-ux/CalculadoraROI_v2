@@ -1,6 +1,6 @@
 # Guía de Despliegue — Drone ROI Calculator
 
-Tres opciones: **Vercel**, **VPS en DigitalOcean** y **GitHub Actions** para automatizar ambos despliegues.
+Cuatro opciones: **Vercel**, **VPS en DigitalOcean**, **GitHub Actions** para automatizar despliegues, y **GitHub Pages** para hosting estático con dominio propio.
 
 ---
 
@@ -174,6 +174,7 @@ Se añadieron dos workflows en `.github/workflows/`:
 |---|---|---|
 | Vercel | `.github/workflows/deploy-vercel.yml` | Hace build y despliega a Vercel en cada push a `master` |
 | VPS | `.github/workflows/deploy-vps.yml` | Entra por SSH a tu VPS, hace `git fetch/reset` y `docker compose up -d --build` cuando lo lanzas manualmente |
+| Pages | `.github/workflows/deploy-pages.yml` | Genera export estático de Next.js y lo publica en GitHub Pages |
 
 ### Secrets necesarios para Vercel
 
@@ -219,6 +220,45 @@ El token se crea en:
 
 ---
 
+## Opción 4: GitHub Pages
+
+El proyecto ya quedó preparado para export estático en GitHub Pages.
+
+### Qué se hizo
+
+- `next.config.ts` ahora usa `DEPLOY_TARGET=github-pages` para cambiar a `output: "export"`
+- Se añadió `.github/workflows/deploy-pages.yml`
+- El export genera la carpeta `out/` y la publica con el flujo oficial de Pages
+
+### Qué tienes que hacer en GitHub
+
+1. Ve a `Repository Settings → Pages`
+2. En `Source`, selecciona `GitHub Actions`
+3. Guarda
+4. Haz un push a `master` o ejecuta manualmente el workflow `Deploy to GitHub Pages`
+
+### Dominio propio en Pages
+
+1. Ve a `Repository Settings → Pages`
+2. En `Custom domain`, escribe tu dominio
+3. Activa `Enforce HTTPS` cuando GitHub lo habilite
+4. Apunta el DNS:
+
+- Para apex/root domain (`tudominio.com`): registros `A` a
+   - `185.199.108.153`
+   - `185.199.109.153`
+   - `185.199.110.153`
+   - `185.199.111.153`
+- Para subdominio (`www.tudominio.com`): `CNAME` a `<tu-usuario>.github.io`
+
+### Importante sobre Pages
+
+- GitHub Pages sirve contenido **estático**
+- Este proyecto sí es compatible porque no depende de API routes ni server rendering
+- Si en el futuro añades funcionalidades server-side, Pages dejaría de ser una opción válida
+
+---
+
 ## Comparación rápida
 
 | Aspecto | Vercel | VPS DigitalOcean |
@@ -246,3 +286,4 @@ El token se crea en:
 | `next.config.ts` | `output: "standalone"` para Docker optimizado |
 | `.github/workflows/deploy-vercel.yml` | Despliegue automático a Vercel |
 | `.github/workflows/deploy-vps.yml` | Despliegue automático a la VPS por SSH |
+| `.github/workflows/deploy-pages.yml` | Despliegue automático a GitHub Pages |

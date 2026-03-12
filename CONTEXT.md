@@ -341,7 +341,15 @@ Zero-config deployment. Vercel auto-detects Next.js.
 2. Settings: Framework = `Next.js`, Root = `/`
 3. Deploy → auto-updates on every `git push`
 
-### Option B: VPS (DigitalOcean)
+### Option B: GitHub Actions → Vercel
+Automated production deploy on every push to `master`.
+- Workflow: `.github/workflows/deploy-vercel.yml`
+- Required GitHub secrets:
+  - `VERCEL_TOKEN`
+  - `VERCEL_ORG_ID`
+  - `VERCEL_PROJECT_ID`
+
+### Option C: VPS (DigitalOcean)
 Docker-based deployment with Nginx reverse proxy + Let's Encrypt SSL.
 
 **Architecture:**
@@ -357,9 +365,12 @@ Internet → Nginx (:80/:443) → Next.js app (Docker :3000)
 | `docker-compose.yml` | Orchestrates: app + nginx + certbot containers |
 | `nginx/default.conf` | Reverse proxy, gzip, security headers, SSL config |
 | `scripts/vps-setup.sh` | Fresh Ubuntu setup (Docker, firewall, deploy user) |
+| `.github/workflows/deploy-vps.yml` | Manual deploy to VPS over SSH from GitHub Actions |
 
 **Key config:**
-- `next.config.ts` has `output: "standalone"` for optimized Docker image
+- `next.config.ts` is conditional by `DEPLOY_TARGET`
+  - default: `output: "standalone"` (Vercel/VPS)
+  - `DEPLOY_TARGET=github-pages`: `output: "export"`, `trailingSlash: true`, `images.unoptimized: true`
 - App runs as non-root `nextjs` user (UID 1001)
 - Certbot container auto-renews SSL every 12h
 
@@ -372,5 +383,25 @@ docker compose up -d --build
 # Update
 git pull && docker compose up -d --build
 ```
+
+### Option D: GitHub Pages (+ custom domain)
+Static hosting via GitHub Pages with automatic deploy from Actions.
+- Workflow: `.github/workflows/deploy-pages.yml`
+- Trigger: push to `master` (or manual run)
+- Build mode: `DEPLOY_TARGET=github-pages npm run build`
+- Artifact: `out/` published by `actions/deploy-pages`
+
+**GitHub setup required:**
+1. Repository Settings → Pages
+2. Source = `GitHub Actions`
+3. (Optional) Set Custom domain and enforce HTTPS
+
+**DNS for custom domain:**
+- Apex/root (`tudominio.com`) → A records:
+  - `185.199.108.153`
+  - `185.199.109.153`
+  - `185.199.110.153`
+  - `185.199.111.153`
+- Subdomain (`www.tudominio.com`) → CNAME to `IsaacM-ux.github.io`
 
 **Full instructions:** See `DEPLOY.md` in repo root.

@@ -36,45 +36,56 @@
 ## 3. File Structure
 
 ```
-src/
-├── app/
-│   ├── layout.tsx          # Root layout (lang="es", Geist fonts, metadata)
-│   ├── page.tsx            # Landing page (hero + CTA → /calculadora)
-│   ├── globals.css         # Tailwind imports
-│   └── calculadora/
-│       └── page.tsx        # Main calculator page (wizard ↔ results toggle)
-├── components/
-│   ├── calculator/
-│   │   ├── StepWizard.tsx  # 5-step form with progress bar + navigation
-│   │   ├── Step1Service.tsx  # Service type (fumigation/seeding) + crop preset
-│   │   ├── Step2Area.tsx     # Hectares, applications/year, input costs
-│   │   ├── Step3Manual.tsx   # Manual method params (toggleable)
-│   │   ├── Step4Tractor.tsx  # Tractor method params (toggleable)
-│   │   └── Step5Drone.tsx    # Drone config: Purchase vs DaaS model
-│   ├── results/
-│   │   ├── ResultsDashboard.tsx   # Orchestrator: cards + charts + table + PDF
-│   │   ├── SavingsCards.tsx       # 3 KPI cards (savings, ROI%, payback)
-│   │   ├── ComparisonChart.tsx    # Bar chart: cost breakdown per method
-│   │   ├── ProjectionChart.tsx    # Line chart: 5-year cumulative cost
-│   │   └── MethodComparisonTable.tsx # Detail table: all cost components
-│   └── ui/                 # Reusable primitives (Button, Card, Input, Select, etc.)
-├── hooks/
-│   └── useCalculator.ts    # Central state + calculation trigger + validation
-├── lib/
-│   ├── utils.ts            # cn(), formatCurrency(), formatNumber()
-│   ├── calculations/
-│   │   ├── types.ts        # All TypeScript interfaces
-│   │   ├── roi-engine.ts   # Main calculateROI() entry point
-│   │   ├── manual.ts       # calculateManualCost()
-│   │   ├── tractor.ts      # calculateTractorCost()
-│   │   └── drone.ts        # calculateDroneCost() (purchase + DaaS)
-│   ├── data/
-│   │   ├── crops.ts        # 8 crop presets with full default values
-│   │   └── defaults.ts     # defaultInputs (100ha soja farm), PROJECTION_YEARS=5
-│   ├── pdf/
-│   │   └── generate-pdf.ts # Captures [data-pdf-section] elements → A4 PDF
-│   └── validation/
-│       └── schemas.ts      # Zod schemas for all input sections
+/                           # Project root
+├── Dockerfile              # Multi-stage Docker build for VPS deployment
+├── docker-compose.yml      # Orchestrates app + nginx + certbot
+├── nginx/
+│   └── default.conf        # Nginx reverse proxy config
+├── scripts/
+│   └── vps-setup.sh        # VPS initial setup script
+├── CONTEXT.md              # This file (agent context)
+├── DEPLOY.md               # Deployment guide (Vercel + VPS)
+├── next.config.ts          # output: "standalone" for Docker
+├── tsconfig.json           # TypeScript config with @/* path alias
+└── src/
+    ├── app/
+    │   ├── layout.tsx          # Root layout (lang="es", Geist fonts, metadata)
+    │   ├── page.tsx            # Landing page (hero + CTA → /calculadora)
+    │   ├── globals.css         # Tailwind imports
+    │   └── calculadora/
+    │       └── page.tsx        # Main calculator page (wizard ↔ results toggle)
+    ├── components/
+    │   ├── calculator/
+    │   │   ├── StepWizard.tsx  # 5-step form with progress bar + navigation
+    │   │   ├── Step1Service.tsx  # Service type (fumigation/seeding) + crop preset
+    │   │   ├── Step2Area.tsx     # Hectares, applications/year, input costs
+    │   │   ├── Step3Manual.tsx   # Manual method params (toggleable)
+    │   │   ├── Step4Tractor.tsx  # Tractor method params (toggleable)
+    │   │   └── Step5Drone.tsx    # Drone config: Purchase vs DaaS model
+    │   ├── results/
+    │   │   ├── ResultsDashboard.tsx   # Orchestrator: cards + charts + table + PDF
+    │   │   ├── SavingsCards.tsx       # 3 KPI cards (savings, ROI%, payback)
+    │   │   ├── ComparisonChart.tsx    # Bar chart: cost breakdown per method
+    │   │   ├── ProjectionChart.tsx    # Line chart: 5-year cumulative cost
+    │   │   └── MethodComparisonTable.tsx # Detail table: all cost components
+    │   └── ui/                 # Reusable primitives (Button, Card, Input, Select, etc.)
+    ├── hooks/
+    │   └── useCalculator.ts    # Central state + calculation trigger + validation
+    └── lib/
+        ├── utils.ts            # cn(), formatCurrency(), formatNumber()
+        ├── calculations/
+        │   ├── types.ts        # All TypeScript interfaces
+        │   ├── roi-engine.ts   # Main calculateROI() entry point
+        │   ├── manual.ts       # calculateManualCost()
+        │   ├── tractor.ts      # calculateTractorCost()
+        │   └── drone.ts        # calculateDroneCost() (purchase + DaaS)
+        ├── data/
+        │   ├── crops.ts        # 8 crop presets with full default values
+        │   └── defaults.ts     # defaultInputs (100ha soja farm), PROJECTION_YEARS=5
+        ├── pdf/
+        │   └── generate-pdf.ts # Captures [data-pdf-section] elements → A4 PDF
+        └── validation/
+            └── schemas.ts      # Zod schemas for all input sections
 ```
 
 ---
@@ -315,3 +326,51 @@ All state lives in `useCalculator()` hook:
 - **No i18n framework**: All strings are hardcoded in Spanish. No translation system.
 - **Client-only calculations**: No API routes. All math runs client-side in the browser.
 - **Static crop data**: The 8 crop presets are hardcoded arrays, not fetched from an API.
+
+---
+
+## 16. Deployment
+
+### Repository
+- **GitHub:** `https://github.com/IsaacM-ux/CalculadoraROI_v2.git`
+- **Branch:** `master`
+
+### Option A: Vercel (Recommended)
+Zero-config deployment. Vercel auto-detects Next.js.
+1. Import repo at [vercel.com/new](https://vercel.com/new)
+2. Settings: Framework = `Next.js`, Root = `/`
+3. Deploy → auto-updates on every `git push`
+
+### Option B: VPS (DigitalOcean)
+Docker-based deployment with Nginx reverse proxy + Let's Encrypt SSL.
+
+**Architecture:**
+```
+Internet → Nginx (:80/:443) → Next.js app (Docker :3000)
+```
+
+**Infra files:**
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Multi-stage build (deps → build → standalone runner) |
+| `.dockerignore` | Excludes node_modules, .git, .next from build context |
+| `docker-compose.yml` | Orchestrates: app + nginx + certbot containers |
+| `nginx/default.conf` | Reverse proxy, gzip, security headers, SSL config |
+| `scripts/vps-setup.sh` | Fresh Ubuntu setup (Docker, firewall, deploy user) |
+
+**Key config:**
+- `next.config.ts` has `output: "standalone"` for optimized Docker image
+- App runs as non-root `nextjs` user (UID 1001)
+- Certbot container auto-renews SSL every 12h
+
+**Deploy commands:**
+```bash
+# On VPS after initial setup
+git clone <repo> ~/app && cd ~/app
+docker compose up -d --build
+
+# Update
+git pull && docker compose up -d --build
+```
+
+**Full instructions:** See `DEPLOY.md` in repo root.
